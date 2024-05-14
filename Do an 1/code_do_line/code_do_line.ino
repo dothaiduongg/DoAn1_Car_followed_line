@@ -55,6 +55,19 @@ int blackLineCount = 0;
 #define PIN_IN3 6 //! D6 (~)
 #define PIN_IN4 7 //! D7
 
+#define PIN_UP 8    // Chân nút bấm tăng giá trị      - tím 
+#define PIN_DOWN 9  // Chân nút bấm giảm giá trị      - tím 
+#define PIN_SET 10  // Chân nút bấm xác định giá trị  - trắng
+#define PIN_RESET 11// Chân nút bấm reset giá trị     - nâu
+int targetLine = 0; // Giá trị điểm đến cho xe dừng
+
+bool isSet = false; // Biến để xác định giá trị đã được set hay chưa
+
+
+
+
+
+
 /* ------------------------------------------------------------------------- */
 /*                            DEFINE CONFIG (PID)                            */
 /* ------------------------------------------------------------------------- */
@@ -98,7 +111,7 @@ int blackLineCount = 0;
  * KI = 0.00001
  * KD = 11.0
  */
-#define KP 25.0    //!
+#define KP 85.0    //!
 #define KI 0.00001 //!
 #define KD 11.0    //!
 
@@ -413,6 +426,12 @@ void setup()
   pinMode(PIN_IN2, OUTPUT);
   pinMode(PIN_IN3, OUTPUT);
   pinMode(PIN_IN4, OUTPUT);
+  
+  //Thiết lập nút bấm  
+  pinMode(PIN_UP, INPUT);
+  pinMode(PIN_DOWN, INPUT);
+  pinMode(PIN_SET, INPUT);
+  pinMode(PIN_RESET, INPUT);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -421,6 +440,41 @@ void setup()
 
 void loop()
 {
+  // Kiểm tra các nút bấm
+  if (digitalRead(PIN_UP) == HIGH)
+  {
+    targetLine++;
+    Serial.print("Target Line Count: ");
+    Serial.println(targetLine);
+    delay(200); // Thêm độ trễ để tránh việc tăng quá nhanh
+  }
+
+  if (digitalRead(PIN_DOWN) == HIGH)
+  {
+    if (targetLine > 0) targetLine--;
+    Serial.print("Target Line : ");
+    Serial.println(targetLine);
+    delay(200); // Thêm độ trễ để tránh việc giảm quá nhanh
+  }
+
+  if (digitalRead(PIN_SET) == HIGH)
+  {
+    isSet = true;
+    Serial.print("Target Line Set: ");
+    Serial.println(targetLine);
+    delay(200); // Thêm độ trễ để tránh việc nhận diện nhiều lần
+  }
+
+  if (digitalRead(PIN_RESET) == HIGH)
+  {
+    isSet = false;
+    targetLine = 0;
+    blackLineCount = 0;
+    Serial.println("Reset target line count and black line count.");
+    delay(200); // Thêm độ trễ để tránh việc reset nhiều lần
+  }
+
+  // Điều khiển xe dựa trên việc đếm vạch line màu đen
   bool isBlackLineDetected = digitalRead(PIN_OUT0) == 0 && digitalRead(PIN_OUT1) == 0 && digitalRead(PIN_OUT2) == 0 && digitalRead(PIN_OUT3) == 0 && digitalRead(PIN_OUT4) == 0;
 
   if (isBlackLineDetected && !isOnBlackLine)
@@ -428,6 +482,8 @@ void loop()
     // Nếu xe chạy qua vạch line màu đen và chưa được đếm
     isOnBlackLine = true; // Đặt cờ hiệu là xe đang ở trên vạch line màu đen
     blackLineCount++;     // Tăng biến đếm lên
+    Serial.print("Black Line Count: ");
+    Serial.println(blackLineCount);
   }
   else if (!isBlackLineDetected && isOnBlackLine)
   {
@@ -435,9 +491,9 @@ void loop()
     isOnBlackLine = false; // Đặt cờ hiệu là xe không còn ở trên vạch line màu đen
   }
 
-  if (blackLineCount >= 4)
+  if (isSet && blackLineCount >= targetLine)
   {
-    // Nếu đã gặp vạch line màu đen đủ ba lần
+    // Nếu đã gặp vạch line màu đen đủ số lần mục tiêu và giá trị đã được set
     stop(); // Dừng xe
   }
 
